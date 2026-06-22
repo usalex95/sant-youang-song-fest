@@ -382,6 +382,7 @@
       <div class="menu">
         <button id="startRevealBtn" onclick="startReveal()">Iniciar revelación</button>
         <button id="nextRevealBtn" onclick="nextReveal()" class="secondary">Revelar siguiente paso</button>
+        <button id="restartRevealBtn" onclick="restartReveal()" class="secondary">Reiniciar revelación desde el 8º</button>
         <button onclick="resetContest()" class="danger">Reiniciar concurso</button>
         <button onclick="showScreen('home')" class="secondary">Volver</button>
       </div>
@@ -676,7 +677,7 @@
 
       if (state.status === "finished") {
         controlText = "Gala finalizada.";
-        controlDetail = "El ganador ya se ha revelado y la pantalla de Gala muestra el ranking final.";
+        controlDetail = "El ganador ya se ha revelado y la pantalla de Gala muestra el ranking final. Puedes reiniciar solo la revelación sin borrar votos.";
       }
 
       const statusList = PARTICIPANTS.map(p => `
@@ -704,6 +705,7 @@
 
       document.getElementById("startRevealBtn").disabled = count !== PARTICIPANTS.length || state.status !== "voting";
       document.getElementById("nextRevealBtn").disabled = state.status === "voting" || state.status === "finished";
+      document.getElementById("restartRevealBtn").disabled = count !== PARTICIPANTS.length || state.status === "voting";
     }
 
     async function calculateRanking() {
@@ -822,6 +824,38 @@
       }
 
       await renderAdminPanel();
+    }
+
+    async function restartReveal() {
+      const everyoneVoted = await allVoted();
+
+      if (!everyoneVoted) {
+        alert("Aún no han votado todos.");
+        return;
+      }
+
+      if (!confirm("¿Quieres reiniciar la revelación desde el 8º puesto sin borrar los votos?")) return;
+
+      lastShownRevealKey = null;
+      lastConfettiWinnerKey = null;
+
+      const { error } = await db
+        .from("contest_state")
+        .update({
+          status: "revealing",
+          reveal_index: 0,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", 1);
+
+      if (error) {
+        alert("Error reiniciando la revelación: " + error.message);
+        return;
+      }
+
+      await renderAdminPanel();
+
+      alert("Revelación reiniciada desde el 8º puesto. Mira la pantalla de Gala.");
     }
 
     async function renderGala() {
