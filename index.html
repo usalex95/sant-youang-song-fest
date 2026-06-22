@@ -794,13 +794,14 @@
       let newIndex = state.reveal_index;
 
       const winnerIndex = order.length - 1;
-      const currentPosition = PARTICIPANTS.length - state.reveal_index;
+      const nextIndex = state.reveal_index + 1;
+      const nextPosition = PARTICIPANTS.length - nextIndex;
 
-      if (currentPosition === 3) {
+      if (nextPosition === 2) {
         newIndex = winnerIndex;
         newStatus = "finished";
-      } else if (state.reveal_index < winnerIndex) {
-        newIndex = state.reveal_index + 1;
+      } else if (nextIndex < winnerIndex) {
+        newIndex = nextIndex;
         newStatus = "revealing";
       } else {
         newIndex = winnerIndex;
