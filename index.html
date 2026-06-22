@@ -6,7 +6,7 @@
   <title>Sant Youang Song Fest</title>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
 
   <style>
     :root {
@@ -218,35 +218,36 @@
       font-size: 0.9rem;
       color: var(--muted);
     }
-.countdown-number {
-  font-size: 6rem;
-  font-weight: 1000;
-  color: var(--accent);
-  text-shadow: 0 0 30px rgba(255, 204, 51, 0.65);
-  animation: pop 0.8s ease-in-out;
-}
 
-.countdown-title {
-  font-size: 1.6rem;
-  color: var(--muted);
-  font-weight: 800;
-  margin-bottom: 18px;
-}
+    .countdown-number {
+      font-size: 6rem;
+      font-weight: 1000;
+      color: var(--accent);
+      text-shadow: 0 0 30px rgba(255, 204, 51, 0.65);
+      animation: pop 0.8s ease-in-out;
+    }
 
-@keyframes pop {
-  0% {
-    transform: scale(0.6);
-    opacity: 0;
-  }
-  45% {
-    transform: scale(1.15);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
+    .countdown-title {
+      font-size: 1.6rem;
+      color: var(--muted);
+      font-weight: 800;
+      margin-bottom: 18px;
+    }
+
+    @keyframes pop {
+      0% {
+        transform: scale(0.6);
+        opacity: 0;
+      }
+      45% {
+        transform: scale(1.15);
+        opacity: 1;
+      }
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
   </style>
 </head>
 <body>
@@ -333,11 +334,11 @@
     const POINTS = [12, 10, 8, 7, 6, 5, 4];
 
     let PARTICIPANTS = [];
-let currentParticipant = null;
-let adminUnlocked = false;
-let countdownTimer = null;
-let lastShownRevealKey = null;
-let lastConfettiWinnerKey = null;
+    let currentParticipant = null;
+    let adminUnlocked = false;
+    let countdownTimer = null;
+    let lastShownRevealKey = null;
+    let lastConfettiWinnerKey = null;
 
     async function initApp() {
       await loadParticipants();
@@ -664,6 +665,8 @@ let lastConfettiWinnerKey = null;
         return;
       }
 
+      lastShownRevealKey = null;
+
       const { error } = await db
         .from("contest_state")
         .update({
@@ -699,6 +702,8 @@ let lastConfettiWinnerKey = null;
         newStatus = "finished";
       }
 
+      lastShownRevealKey = null;
+
       const { error } = await db
         .from("contest_state")
         .update({
@@ -718,189 +723,30 @@ let lastConfettiWinnerKey = null;
     }
 
     async function renderGala() {
-  const state = await getState();
-  const gala = document.getElementById("galaContent");
+      const state = await getState();
+      const gala = document.getElementById("galaContent");
 
-  if (!state) return;
+      if (!state) return;
 
-  if (countdownTimer) {
-    clearInterval(countdownTimer);
-    countdownTimer = null;
-  }
-
-  if (state.status === "voting") {
-    const votes = await getVotes();
-    const voters = new Set(votes.map(v => v.voter_id));
-    const count = PARTICIPANTS.filter(p => voters.has(p.id)).length;
-
-    gala.innerHTML = `
-      <div class="gala-box">
-        <div class="position">Esperando votaciones</div>
-        <p class="points">${count} / ${PARTICIPANTS.length} votos recibidos</p>
-        <p class="small">El ranking aparecerá cuando el organizador inicie la revelación.</p>
-      </div>
-    `;
-    return;
-  }
-
-  const order = await getRevealOrder();
-  const revealed = order.slice(0, state.reveal_index + 1);
-  const current = order[state.reveal_index];
-
-  if (!current) {
-    gala.innerHTML = `
-      <div class="gala-box">
-        <div class="position">Aún no hay resultado para mostrar</div>
-      </div>
-    `;
-    return;
-  }
-
-  const position = PARTICIPANTS.length - state.reveal_index;
-  const isWinner = position === 1;
-  const revealKey = `${state.status}-${state.reveal_index}-${current.id}`;
-
-  if (lastShownRevealKey !== revealKey) {
-    lastShownRevealKey = revealKey;
-    startCountdownThenShow({
-      gala,
-      revealed,
-      current,
-      position,
-      isWinner,
-      revealKey
-    });
-    return;
-  }
-
-  showRevealContent({
-    gala,
-    revealed,
-    current,
-    position,
-    isWinner,
-    revealKey
-  });
-}
-function startCountdownThenShow({ gala, revealed, current, position, isWinner, revealKey }) {
-  let count = 3;
-
-  gala.innerHTML = `
-    <div class="gala-box">
-      <div class="countdown-title">
-        ${isWinner ? "Preparando el ganador..." : "Preparando el " + position + "º puesto..."}
-      </div>
-      <div id="countdownNumber" class="countdown-number">${count}</div>
-    </div>
-  `;
-
-  countdownTimer = setInterval(() => {
-    count -= 1;
-
-    const numberEl = document.getElementById("countdownNumber");
-
-    if (count > 0) {
-      if (numberEl) {
-        numberEl.textContent = count;
-        numberEl.style.animation = "none";
-        void numberEl.offsetWidth;
-        numberEl.style.animation = "pop 0.8s ease-in-out";
+      if (countdownTimer) {
+        clearInterval(countdownTimer);
+        countdownTimer = null;
       }
-    } else {
-      clearInterval(countdownTimer);
-      countdownTimer = null;
 
-      showRevealContent({
-        gala,
-        revealed,
-        current,
-        position,
-        isWinner,
-        revealKey
-      });
-    }
-  }, 1000);
-}
+      if (state.status === "voting") {
+        const votes = await getVotes();
+        const voters = new Set(votes.map(v => v.voter_id));
+        const count = PARTICIPANTS.filter(p => voters.has(p.id)).length;
 
-function showRevealContent({ gala, revealed, current, position, isWinner, revealKey }) {
-  const revealedTable = revealed.map((p, index) => {
-    const pos = PARTICIPANTS.length - index;
-    return `
-      <tr>
-        <td>${pos}º</td>
-        <td>${p.name}</td>
-        <td>${p.total}</td>
-      </tr>
-    `;
-  }).join("");
-
-  gala.innerHTML = `
-    <div class="gala-box ${isWinner ? "winner" : ""}">
-      <div class="position">${isWinner ? "GANADOR/A" : position + "º puesto"}</div>
-      <div class="contestant-name">${current.name}</div>
-      <div class="points">${current.total} puntos</div>
-      ${isWinner ? `<p class="message success">¡Enhorabuena, ${current.name}!</p>` : ""}
-    </div>
-
-    <h3>Revelados</h3>
-    <table class="ranking-table">
-      <thead>
-        <tr>
-          <th>Puesto</th>
-          <th>Participante</th>
-          <th>Puntos</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${revealedTable}
-      </tbody>
-    </table>
-  `;
-
-  if (isWinner && lastConfettiWinnerKey !== revealKey) {
-    lastConfettiWinnerKey = revealKey;
-    launchConfetti();
-  }
-}
-
-function launchConfetti() {
-  if (typeof confetti !== "function") return;
-
-  const duration = 3500;
-  const end = Date.now() + duration;
-
-  const colors = ["#ffcc33", "#ff4ecd", "#4dffb5", "#ffffff", "#9b5cff"];
-
-  (function frame() {
-    confetti({
-      particleCount: 7,
-      angle: 60,
-      spread: 70,
-      origin: { x: 0 },
-      colors
-    });
-
-    confetti({
-      particleCount: 7,
-      angle: 120,
-      spread: 70,
-      origin: { x: 1 },
-      colors
-    });
-
-    if (Date.now() < end) {
-      requestAnimationFrame(frame);
-    }
-  })();
-
-  confetti({
-    particleCount: 160,
-    spread: 100,
-    startVelocity: 45,
-    origin: { y: 0.6 },
-    colors
-  });
-}
+        gala.innerHTML = `
+          <div class="gala-box">
+            <div class="position">Esperando votaciones</div>
+            <p class="points">${count} / ${PARTICIPANTS.length} votos recibidos</p>
+            <p class="small">El ranking aparecerá cuando el organizador inicie la revelación.</p>
+          </div>
+        `;
+        return;
+      }
 
       const order = await getRevealOrder();
       const revealed = order.slice(0, state.reveal_index + 1);
@@ -917,7 +763,72 @@ function launchConfetti() {
 
       const position = PARTICIPANTS.length - state.reveal_index;
       const isWinner = position === 1;
+      const revealKey = `${state.status}-${state.reveal_index}-${current.id}`;
 
+      if (lastShownRevealKey !== revealKey) {
+        lastShownRevealKey = revealKey;
+        startCountdownThenShow({
+          gala,
+          revealed,
+          current,
+          position,
+          isWinner,
+          revealKey
+        });
+        return;
+      }
+
+      showRevealContent({
+        gala,
+        revealed,
+        current,
+        position,
+        isWinner,
+        revealKey
+      });
+    }
+
+    function startCountdownThenShow({ gala, revealed, current, position, isWinner, revealKey }) {
+      let count = 3;
+
+      gala.innerHTML = `
+        <div class="gala-box">
+          <div class="countdown-title">
+            ${isWinner ? "Preparando el ganador..." : "Preparando el " + position + "º puesto..."}
+          </div>
+          <div id="countdownNumber" class="countdown-number">${count}</div>
+        </div>
+      `;
+
+      countdownTimer = setInterval(() => {
+        count -= 1;
+
+        const numberEl = document.getElementById("countdownNumber");
+
+        if (count > 0) {
+          if (numberEl) {
+            numberEl.textContent = count;
+            numberEl.style.animation = "none";
+            void numberEl.offsetWidth;
+            numberEl.style.animation = "pop 0.8s ease-in-out";
+          }
+        } else {
+          clearInterval(countdownTimer);
+          countdownTimer = null;
+
+          showRevealContent({
+            gala,
+            revealed,
+            current,
+            position,
+            isWinner,
+            revealKey
+          });
+        }
+      }, 1000);
+    }
+
+    function showRevealContent({ gala, revealed, current, position, isWinner, revealKey }) {
       const revealedTable = revealed.map((p, index) => {
         const pos = PARTICIPANTS.length - index;
         return `
@@ -951,10 +862,57 @@ function launchConfetti() {
           </tbody>
         </table>
       `;
+
+      if (isWinner && lastConfettiWinnerKey !== revealKey) {
+        lastConfettiWinnerKey = revealKey;
+        launchConfetti();
+      }
+    }
+
+    function launchConfetti() {
+      if (typeof confetti !== "function") return;
+
+      const duration = 3500;
+      const end = Date.now() + duration;
+
+      const colors = ["#ffcc33", "#ff4ecd", "#4dffb5", "#ffffff", "#9b5cff"];
+
+      (function frame() {
+        confetti({
+          particleCount: 7,
+          angle: 60,
+          spread: 70,
+          origin: { x: 0 },
+          colors
+        });
+
+        confetti({
+          particleCount: 7,
+          angle: 120,
+          spread: 70,
+          origin: { x: 1 },
+          colors
+        });
+
+        if (Date.now() < end) {
+          requestAnimationFrame(frame);
+        }
+      })();
+
+      confetti({
+        particleCount: 160,
+        spread: 100,
+        startVelocity: 45,
+        origin: { y: 0.6 },
+        colors
+      });
     }
 
     async function resetContest() {
       if (!confirm("¿Seguro que quieres borrar todos los votos y reiniciar el concurso?")) return;
+
+      lastShownRevealKey = null;
+      lastConfettiWinnerKey = null;
 
       const { error: votesError } = await db
         .from("votes")
