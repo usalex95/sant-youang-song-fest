@@ -29,7 +29,9 @@
       margin: 0;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background:
-        radial-gradient(circle at top, #3b1b75 0, transparent 35%),
+        radial-gradient(circle at top left, rgba(255, 78, 205, 0.22) 0, transparent 32%),
+        radial-gradient(circle at top right, rgba(255, 204, 51, 0.18) 0, transparent 28%),
+        radial-gradient(circle at bottom, rgba(155, 92, 255, 0.22) 0, transparent 38%),
         linear-gradient(180deg, #10091f, #05020a);
       color: var(--text);
       min-height: 100vh;
@@ -51,6 +53,48 @@
       color: var(--muted);
     }
 
+    .festival-header {
+      padding: 34px 18px 14px;
+      text-align: center;
+    }
+
+    .festival-kicker {
+      display: inline-block;
+      padding: 7px 12px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.16);
+      color: var(--accent);
+      font-size: 0.78rem;
+      font-weight: 900;
+      letter-spacing: 0.12em;
+      margin-bottom: 12px;
+    }
+
+    .festival-title {
+      margin: 0;
+      font-size: clamp(2.5rem, 12vw, 5.8rem);
+      line-height: 0.88;
+      font-weight: 1000;
+      letter-spacing: -0.06em;
+      text-transform: uppercase;
+      background: linear-gradient(135deg, #ffffff 0%, #ffcc33 34%, #ff4ecd 72%, #9b5cff 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      text-shadow: 0 0 45px rgba(255, 78, 205, 0.25);
+    }
+
+    .festival-title span {
+      letter-spacing: -0.03em;
+    }
+
+    .festival-subtitle {
+      margin-top: 14px;
+      color: var(--muted);
+      font-weight: 800;
+    }
+
     main {
       width: min(760px, 100%);
       margin: 0 auto;
@@ -64,6 +108,7 @@
       padding: 18px;
       box-shadow: 0 18px 50px rgba(0,0,0,0.25);
       margin-bottom: 18px;
+      backdrop-filter: blur(10px);
     }
 
     .menu {
@@ -153,6 +198,28 @@
       color: var(--muted);
     }
 
+    .admin-control-box {
+      margin-top: 14px;
+      padding: 14px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .admin-control-title {
+      color: var(--accent);
+      font-weight: 900;
+      margin-bottom: 6px;
+    }
+
+    .final-ranking-title {
+      margin-top: 22px;
+      color: var(--accent);
+      text-align: center;
+      font-size: 1.4rem;
+      font-weight: 900;
+    }
+
     .error {
       color: #fff;
       background: rgba(255, 92, 122, 0.2);
@@ -212,6 +279,7 @@
         radial-gradient(circle at top, rgba(255,204,51,0.25), transparent 45%),
         rgba(255,255,255,0.08);
       border: 1px solid rgba(255,204,51,0.45);
+      border-radius: 20px;
     }
 
     .small {
@@ -250,10 +318,12 @@
     }
   </style>
 </head>
+
 <body>
-  <header>
-    <h1>Sant Youang Song Fest</h1>
-    <div class="subtitle">Votación privada · 12, 10, 8, 7, 6, 5 y 4 puntos</div>
+  <header class="festival-header">
+    <div class="festival-kicker">🎤 LIVE FROM SANT YOUANG 🎤</div>
+    <h1 class="festival-title">Sant Youang<br><span>Song Fest</span></h1>
+    <div class="festival-subtitle">✨ Votación privada · 12 · 10 · 8 · 7 · 6 · 5 · 4 puntos ✨</div>
   </header>
 
   <main>
@@ -311,8 +381,7 @@
 
       <div class="menu">
         <button id="startRevealBtn" onclick="startReveal()">Iniciar revelación</button>
-        <button id="nextRevealBtn" onclick="nextReveal()" class="secondary">Revelar siguiente puesto</button>
-        <button onclick="showScreen('gala')" class="secondary">Ver pantalla de gala</button>
+        <button id="nextRevealBtn" onclick="nextReveal()" class="secondary">Revelar siguiente paso</button>
         <button onclick="resetContest()" class="danger">Reiniciar concurso</button>
         <button onclick="showScreen('home')" class="secondary">Volver</button>
       </div>
@@ -591,6 +660,25 @@
       const voters = new Set(votes.map(v => v.voter_id));
       const count = PARTICIPANTS.filter(p => voters.has(p.id)).length;
 
+      let controlText = "Esperando votos.";
+      let controlDetail = "Cuando voten los 8, podrás iniciar la revelación. El ranking no se muestra en este panel.";
+
+      if (state.status === "revealing") {
+        const position = PARTICIPANTS.length - state.reveal_index;
+        controlText = "Gala en marcha.";
+
+        if (position === 3) {
+          controlDetail = "Siguiente acción: revelar directamente el ganador/a. El 2º puesto aparecerá en el ranking final.";
+        } else {
+          controlDetail = `Siguiente acción: revelar siguiente paso. Actualmente la gala está en el ${position}º puesto.`;
+        }
+      }
+
+      if (state.status === "finished") {
+        controlText = "Gala finalizada.";
+        controlDetail = "El ganador ya se ha revelado y la pantalla de Gala muestra el ranking final.";
+      }
+
       const statusList = PARTICIPANTS.map(p => `
         <div class="status-item">
           <span>${p.name}</span>
@@ -605,6 +693,12 @@
           Estado: <strong>${state.status}</strong><br>
           Votos recibidos: <strong>${count} / ${PARTICIPANTS.length}</strong>
         </div>
+
+        <div class="admin-control-box">
+          <div class="admin-control-title">${controlText}</div>
+          <div class="small">${controlDetail}</div>
+        </div>
+
         <div class="status-list">${statusList}</div>
       `;
 
@@ -641,11 +735,13 @@
 
       scores.sort((a, b) => {
         if (b.total !== a.total) return b.total - a.total;
+
         for (const pts of POINTS) {
           if (b.counts[pts] !== a.counts[pts]) {
             return b.counts[pts] - a.counts[pts];
           }
         }
+
         return a.name.localeCompare(b.name);
       });
 
@@ -682,8 +778,8 @@
       }
 
       await renderAdminPanel();
-      await renderGala();
-      showScreen("gala");
+
+      alert("Revelación iniciada. Mira la pantalla de Gala.");
     }
 
     async function nextReveal() {
@@ -695,10 +791,17 @@
       let newStatus = state.status;
       let newIndex = state.reveal_index;
 
-      if (state.reveal_index < order.length - 1) {
+      const winnerIndex = order.length - 1;
+      const currentPosition = PARTICIPANTS.length - state.reveal_index;
+
+      if (currentPosition === 3) {
+        newIndex = winnerIndex;
+        newStatus = "finished";
+      } else if (state.reveal_index < winnerIndex) {
         newIndex = state.reveal_index + 1;
         newStatus = "revealing";
       } else {
+        newIndex = winnerIndex;
         newStatus = "finished";
       }
 
@@ -719,7 +822,6 @@
       }
 
       await renderAdminPanel();
-      await renderGala();
     }
 
     async function renderGala() {
@@ -748,7 +850,8 @@
         return;
       }
 
-      const order = await getRevealOrder();
+      const fullRanking = await calculateRanking();
+      const order = fullRanking.slice().reverse();
       const revealed = order.slice(0, state.reveal_index + 1);
       const current = order[state.reveal_index];
 
@@ -773,7 +876,8 @@
           current,
           position,
           isWinner,
-          revealKey
+          revealKey,
+          fullRanking
         });
         return;
       }
@@ -784,17 +888,18 @@
         current,
         position,
         isWinner,
-        revealKey
+        revealKey,
+        fullRanking
       });
     }
 
-    function startCountdownThenShow({ gala, revealed, current, position, isWinner, revealKey }) {
+    function startCountdownThenShow({ gala, revealed, current, position, isWinner, revealKey, fullRanking }) {
       let count = 3;
 
       gala.innerHTML = `
         <div class="gala-box">
           <div class="countdown-title">
-            ${isWinner ? "Preparando el ganador..." : "Preparando el " + position + "º puesto..."}
+            ${isWinner ? "Y el ganador/a es..." : "Preparando el " + position + "º puesto..."}
           </div>
           <div id="countdownNumber" class="countdown-number">${count}</div>
         </div>
@@ -822,23 +927,41 @@
             current,
             position,
             isWinner,
-            revealKey
+            revealKey,
+            fullRanking
           });
         }
       }, 1000);
     }
 
-    function showRevealContent({ gala, revealed, current, position, isWinner, revealKey }) {
-      const revealedTable = revealed.map((p, index) => {
-        const pos = PARTICIPANTS.length - index;
-        return `
-          <tr>
-            <td>${pos}º</td>
-            <td>${p.name}</td>
-            <td>${p.total}</td>
-          </tr>
-        `;
-      }).join("");
+    function showRevealContent({ gala, revealed, current, position, isWinner, revealKey, fullRanking }) {
+      let tableRows = "";
+
+      if (isWinner && fullRanking) {
+        tableRows = fullRanking.map((p, index) => {
+          const pos = index + 1;
+
+          return `
+            <tr>
+              <td>${pos}º</td>
+              <td>${p.name}</td>
+              <td>${p.total}</td>
+            </tr>
+          `;
+        }).join("");
+      } else {
+        tableRows = revealed.map((p, index) => {
+          const pos = PARTICIPANTS.length - index;
+
+          return `
+            <tr>
+              <td>${pos}º</td>
+              <td>${p.name}</td>
+              <td>${p.total}</td>
+            </tr>
+          `;
+        }).join("");
+      }
 
       gala.innerHTML = `
         <div class="gala-box ${isWinner ? "winner" : ""}">
@@ -848,7 +971,8 @@
           ${isWinner ? `<p class="message success">¡Enhorabuena, ${current.name}!</p>` : ""}
         </div>
 
-        <h3>Revelados</h3>
+        ${isWinner ? `<div class="final-ranking-title">Ranking final</div>` : `<h3>Revelados</h3>`}
+
         <table class="ranking-table">
           <thead>
             <tr>
@@ -858,7 +982,7 @@
             </tr>
           </thead>
           <tbody>
-            ${revealedTable}
+            ${tableRows}
           </tbody>
         </table>
       `;
