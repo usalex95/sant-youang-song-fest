@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sant Youang Song Fest</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    :root {
+      --bg: #10091f;
+      --card: #1d1233;
+      --card2: #291846;
+      --accent: #ffcc33;
+      --accent2: #ff4ecd;
+      --text: #ffffff;
+      --muted: #c8bfe0;
+      --danger: #ff5c7a;
+      --success: #4dffb5;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top, #3b1b75 0, transparent 35%),
+        linear-gradient(180deg, #10091f, #05020a);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    header {
+      padding: 28px 18px 10px;
+      text-align: center;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 2rem;
+      line-height: 1.1;
+    }
+
+    .subtitle {
+      margin-top: 8px;
+      color: var(--muted);
+    }
+
+    main {
+      width: min(760px, 100%);
+      margin: 0 auto;
+      padding: 18px;
+    }
+
+    .card {
+      background: rgba(29, 18, 51, 0.92);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 22px;
+      padding: 18px;
+      box-shadow: 0 18px 50px rgba(0,0,0,0.25);
+      margin-bottom: 18px;
+    }
+
+    .menu {
+      display: grid;
+      gap: 12px;
+    }
+
+    button, select, input {
+      width: 100%;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.14);
+      padding: 13px 14px;
+      font-size: 1rem;
+    }
+
+    button {
+      background: linear-gradient(135deg, var(--accent), #ff8a00);
+      color: #1a0b00;
+      font-weight: 800;
+      cursor: pointer;
+      border: none;
+      margin-top: 10px;
+    }
+
+    button.secondary {
+      background: var(--card2);
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,0.14);
+    }
+
+    button.danger {
+      background: linear-gradient(135deg, #ff5c7a, #ff244f);
+      color: white;
+    }
+
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    select, input {
+      background: #120a22;
+      color: var(--text);
+    }
+
+    label {
+      display: block;
+      margin: 14px 0 7px;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .status-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .status-item {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      background: rgba(255,255,255,0.06);
+      padding: 12px;
+      border-radius: 14px;
+    }
+
+    .ok {
+      color: var(--success);
+      font-weight: 800;
+    }
+
+    .pending {
+      color: var(--danger);
+      font-weight: 800;
+    }
+
+    .message {
+      margin: 12px 0;
+      padding: 12px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.08);
+      color: var(--muted);
+    }
+
+    .error {
+      color: #fff;
+      background: rgba(255, 92, 122, 0.2);
+      border: 1px solid rgba(255, 92, 122, 0.4);
+    }
+
+    .success {
+      color: #fff;
+      background: rgba(77, 255, 181, 0.12);
+      border: 1px solid rgba(77, 255, 181, 0.4);
+    }
+
+    .gala-box {
+      text-align: center;
+      padding: 36px 16px;
+    }
+
+    .position {
+      font-size: 2.4rem;
+      font-weight: 900;
+      color: var(--accent);
+      margin-bottom: 18px;
+    }
+
+    .contestant-name {
+      font-size: 3rem;
+      font-weight: 1000;
+      margin: 10px 0;
+    }
+
+    .points {
+      font-size: 1.8rem;
+      color: var(--accent2);
+      font-weight: 900;
+    }
+
+    .ranking-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+    }
+
+    .ranking-table th,
+    .ranking-table td {
+      padding: 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      text-align: left;
+    }
+
+    .ranking-table th:last-child,
+    .ranking-table td:last-child {
+      text-align: right;
+    }
+
+    .winner {
+      background:
+        radial-gradient(circle at top, rgba(255,204,51,0.25), transparent 45%),
+        rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,204,51,0.45);
+    }
+
+    .small {
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Sant Youang Song Fest</h1>
+    <div class="subtitle">Votación privada · 12, 10, 8, 7, 6, 5 y 4 puntos</div>
+  </header>
+
+  <main>
+    <section id="home" class="card">
+      <h2>Menú</h2>
+      <div class="menu">
+        <button onclick="showScreen('voteLogin')">Votar</button>
+        <button onclick="showScreen('adminLogin')" class="secondary">Panel organizador</button>
+        <button onclick="showScreen('gala')" class="secondary">Gala</button>
+      </div>
+    </section>
+
+    <section id="voteLogin" class="card hidden">
+      <h2>Acceso participante</h2>
+
+      <label for="participantSelect">¿Quién eres?</label>
+      <select id="participantSelect"></select>
+
+      <label for="participantPin">PIN</label>
+      <input id="participantPin" type="password" inputmode="numeric" placeholder="Introduce tu PIN" />
+
+      <div id="loginMsg"></div>
+
+      <button onclick="loginParticipant()">Entrar a votar</button>
+      <button onclick="showScreen('home')" class="secondary">Volver</button>
+    </section>
+
+    <section id="voteForm" class="card hidden">
+      <h2 id="voteTitle">Votación</h2>
+      <p class="small">Asigna cada puntuación a una persona distinta. No puedes votarte a ti mismo/a.</p>
+
+      <div id="voteFields"></div>
+      <div id="voteMsg"></div>
+
+      <button onclick="submitVotes()">Enviar votos</button>
+      <button onclick="showScreen('home')" class="secondary">Volver</button>
+    </section>
+
+    <section id="adminLogin" class="card hidden">
+      <h2>Panel organizador</h2>
+
+      <label for="adminPin">PIN organizador</label>
+      <input id="adminPin" type="password" inputmode="numeric" placeholder="PIN organizador" />
+
+      <div id="adminLoginMsg"></div>
+
+      <button onclick="loginAdmin()">Entrar</button>
+      <button onclick="showScreen('home')" class="secondary">Volver</button>
+    </section>
+
+    <section id="adminPanel" class="card hidden">
+      <h2>Panel organizador</h2>
+
+      <div id="adminStatus"></div>
+
+      <div class="menu">
+        <button id="startRevealBtn" onclick="startReveal()">Iniciar revelación</button>
+        <button id="nextRevealBtn" onclick="nextReveal()" class="secondary">Revelar siguiente puesto</button>
+        <button onclick="showScreen('gala')" class="secondary">Ver pantalla de gala</button>
+        <button onclick="resetContest()" class="danger">Reiniciar concurso</button>
+        <button onclick="showScreen('home')" class="secondary">Volver</button>
+      </div>
+    </section>
+
+    <section id="gala" class="card hidden">
+      <div id="galaContent"></div>
+      <button onclick="renderGala()" class="secondary">Actualizar</button>
+      <button onclick="showScreen('home')" class="secondary">Volver</button>
+    </section>
+  </main>
+
+  <script>
+    const SUPABASE_URL = "https://dsdamqueagskbhovxmyt.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_tKPEzcvu5FSdwlwgxL93cw_0xniStCZ";
+
+    const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const POINTS = [12, 10, 8, 7, 6, 5, 4];
+
+    let PARTICIPANTS = [];
+    let currentParticipant = null;
+    let adminUnlocked = false;
+
+    async function initApp() {
+      await loadParticipants();
+      renderParticipantSelect();
+      subscribeToChanges();
+    }
+
+    async function loadParticipants() {
+      const { data, error } = await db
+        .from("participants")
+        .select("*")
+        .order("display_order", { ascending: true });
+
+      if (error) {
+        alert("Error cargando participantes: " + error.message);
+        return;
+      }
+
+      PARTICIPANTS = data;
+    }
+
+    async function getState() {
+      const { data, error } = await db
+        .from("contest_state")
+        .select("*")
+        .eq("id", 1)
+        .single();
+
+      if (error) {
+        alert("Error cargando estado: " + error.message);
+        return null;
+      }
+
+      return data;
+    }
+
+    async function getVotes() {
+      const { data, error } = await db
+        .from("votes")
+        .select("*");
+
+      if (error) {
+        alert("Error cargando votos: " + error.message);
+        return [];
+      }
+
+      return data;
+    }
+
+    function showScreen(id) {
+      document.querySelectorAll("main > section").forEach(section => {
+        section.classList.add("hidden");
+      });
+
+      document.getElementById(id).classList.remove("hidden");
+
+      if (id === "voteLogin") renderParticipantSelect();
+      if (id === "adminPanel") renderAdminPanel();
+      if (id === "gala") renderGala();
+    }
+
+    function renderParticipantSelect() {
+      const select = document.getElementById("participantSelect");
+
+      if (!select) return;
+
+      select.innerHTML = PARTICIPANTS
+        .map(p => `<option value="${p.id}">${p.name}</option>`)
+        .join("");
+
+      document.getElementById("participantPin").value = "";
+      document.getElementById("loginMsg").innerHTML = "";
+    }
+
+    async function loginParticipant() {
+      const state = await getState();
+
+      if (!state) return;
+
+      if (state.status !== "voting") {
+        document.getElementById("loginMsg").innerHTML =
+          `<div class="message error">La votación ya está cerrada.</div>`;
+        return;
+      }
+
+      const participantId = document.getElementById("participantSelect").value;
+      const pin = document.getElementById("participantPin").value.trim();
+
+      const participant = PARTICIPANTS.find(p => p.id === participantId);
+
+      if (!participant || participant.pin !== pin) {
+        document.getElementById("loginMsg").innerHTML =
+          `<div class="message error">Participante o PIN incorrecto.</div>`;
+        return;
+      }
+
+      currentParticipant = participant;
+      await renderVoteForm();
+      showScreen("voteForm");
+    }
+
+    async function renderVoteForm() {
+      document.getElementById("voteTitle").textContent = `Votación de ${currentParticipant.name}`;
+
+      const { data: previousRows, error } = await db
+        .from("votes")
+        .select("*")
+        .eq("voter_id", currentParticipant.id);
+
+      if (error) {
+        document.getElementById("voteMsg").innerHTML =
+          `<div class="message error">Error cargando voto anterior.</div>`;
+        return;
+      }
+
+      const previousVotes = {};
+      previousRows.forEach(row => {
+        previousVotes[row.points] = row.receiver_id;
+      });
+
+      const html = POINTS.map(points => {
+        return `
+          <label>${points} puntos para:</label>
+          <select data-points="${points}">
+            <option value="">Selecciona participante</option>
+            ${PARTICIPANTS
+              .filter(p => p.id !== currentParticipant.id)
+              .map(p => `
+                <option value="${p.id}" ${p.id === previousVotes[points] ? "selected" : ""}>
+                  ${p.name}
+                </option>
+              `).join("")}
+          </select>
+        `;
+      }).join("");
+
+      document.getElementById("voteFields").innerHTML = html;
+      document.getElementById("voteMsg").innerHTML = previousRows.length
+        ? `<div class="message success">Ya habías votado. Puedes editar tu voto mientras la gala no haya empezado.</div>`
+        : "";
+    }
+
+    async function submitVotes() {
+      const state = await getState();
+
+      if (!state) return;
+
+      if (state.status !== "voting") {
+        document.getElementById("voteMsg").innerHTML =
+          `<div class="message error">La votación ya está cerrada.</div>`;
+        return;
+      }
+
+      const selects = Array.from(document.querySelectorAll("#voteFields select"));
+      const rows = [];
+      const receivers = [];
+
+      for (const select of selects) {
+        const points = Number(select.dataset.points);
+        const receiverId = select.value;
+
+        if (!receiverId) {
+          document.getElementById("voteMsg").innerHTML =
+            `<div class="message error">Debes asignar todas las puntuaciones.</div>`;
+          return;
+        }
+
+        if (receiverId === currentParticipant.id) {
+          document.getElementById("voteMsg").innerHTML =
+            `<div class="message error">No puedes votarte a ti mismo/a.</div>`;
+          return;
+        }
+
+        rows.push({
+          voter_id: currentParticipant.id,
+          receiver_id: receiverId,
+          points
+        });
+
+        receivers.push(receiverId);
+      }
+
+      const uniqueReceivers = new Set(receivers);
+
+      if (uniqueReceivers.size !== receivers.length) {
+        document.getElementById("voteMsg").innerHTML =
+          `<div class="message error">No puedes repetir participante.</div>`;
+        return;
+      }
+
+      const { error: deleteError } = await db
+        .from("votes")
+        .delete()
+        .eq("voter_id", currentParticipant.id);
+
+      if (deleteError) {
+        document.getElementById("voteMsg").innerHTML =
+          `<div class="message error">Error borrando voto anterior: ${deleteError.message}</div>`;
+        return;
+      }
+
+      const { error: insertError } = await db
+        .from("votes")
+        .insert(rows);
+
+      if (insertError) {
+        document.getElementById("voteMsg").innerHTML =
+          `<div class="message error">Error guardando votos: ${insertError.message}</div>`;
+        return;
+      }
+
+      document.getElementById("voteMsg").innerHTML =
+        `<div class="message success">Voto enviado correctamente. Puedes volver al menú.</div>`;
+    }
+
+    async function loginAdmin() {
+      const pin = document.getElementById("adminPin").value.trim();
+      const state = await getState();
+
+      if (!state) return;
+
+      if (pin !== state.organizer_pin) {
+        document.getElementById("adminLoginMsg").innerHTML =
+          `<div class="message error">PIN organizador incorrecto.</div>`;
+        return;
+      }
+
+      adminUnlocked = true;
+      showScreen("adminPanel");
+    }
+
+    async function getVotersSet() {
+      const votes = await getVotes();
+      return new Set(votes.map(v => v.voter_id));
+    }
+
+    async function allVoted() {
+      const voters = await getVotersSet();
+      return PARTICIPANTS.every(p => voters.has(p.id));
+    }
+
+    async function renderAdminPanel() {
+      if (!adminUnlocked) {
+        showScreen("adminLogin");
+        return;
+      }
+
+      const state = await getState();
+      const votes = await getVotes();
+      const voters = new Set(votes.map(v => v.voter_id));
+      const count = PARTICIPANTS.filter(p => voters.has(p.id)).length;
+
+      const statusList = PARTICIPANTS.map(p => `
+        <div class="status-item">
+          <span>${p.name}</span>
+          <span class="${voters.has(p.id) ? "ok" : "pending"}">
+            ${voters.has(p.id) ? "Votó" : "Pendiente"}
+          </span>
+        </div>
+      `).join("");
+
+      document.getElementById("adminStatus").innerHTML = `
+        <div class="message">
+          Estado: <strong>${state.status}</strong><br>
+          Votos recibidos: <strong>${count} / ${PARTICIPANTS.length}</strong>
+        </div>
+        <div class="status-list">${statusList}</div>
+      `;
+
+      document.getElementById("startRevealBtn").disabled = count !== PARTICIPANTS.length || state.status !== "voting";
+      document.getElementById("nextRevealBtn").disabled = state.status === "voting" || state.status === "finished";
+    }
+
+    async function calculateRanking() {
+      const votes = await getVotes();
+
+      const scores = PARTICIPANTS.map(p => ({
+        ...p,
+        total: 0,
+        counts: {
+          12: 0,
+          10: 0,
+          8: 0,
+          7: 0,
+          6: 0,
+          5: 0,
+          4: 0
+        }
+      }));
+
+      const byId = Object.fromEntries(scores.map(p => [p.id, p]));
+
+      votes.forEach(vote => {
+        const participant = byId[vote.receiver_id];
+        if (participant) {
+          participant.total += Number(vote.points);
+          participant.counts[vote.points] += 1;
+        }
+      });
+
+      scores.sort((a, b) => {
+        if (b.total !== a.total) return b.total - a.total;
+        for (const pts of POINTS) {
+          if (b.counts[pts] !== a.counts[pts]) {
+            return b.counts[pts] - a.counts[pts];
+          }
+        }
+        return a.name.localeCompare(b.name);
+      });
+
+      return scores;
+    }
+
+    async function getRevealOrder() {
+      const ranking = await calculateRanking();
+      return ranking.slice().reverse();
+    }
+
+    async function startReveal() {
+      const everyoneVoted = await allVoted();
+
+      if (!everyoneVoted) {
+        alert("Aún no han votado todos.");
+        return;
+      }
+
+      const { error } = await db
+        .from("contest_state")
+        .update({
+          status: "revealing",
+          reveal_index: 0,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", 1);
+
+      if (error) {
+        alert("Error iniciando revelación: " + error.message);
+        return;
+      }
+
+      await renderAdminPanel();
+      await renderGala();
+      showScreen("gala");
+    }
+
+    async function nextReveal() {
+      const state = await getState();
+      const order = await getRevealOrder();
+
+      if (state.status === "voting") return;
+
+      let newStatus = state.status;
+      let newIndex = state.reveal_index;
+
+      if (state.reveal_index < order.length - 1) {
+        newIndex = state.reveal_index + 1;
+        newStatus = "revealing";
+      } else {
+        newStatus = "finished";
+      }
+
+      const { error } = await db
+        .from("contest_state")
+        .update({
+          status: newStatus,
+          reveal_index: newIndex,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", 1);
+
+      if (error) {
+        alert("Error revelando siguiente puesto: " + error.message);
+        return;
+      }
+
+      await renderAdminPanel();
+      await renderGala();
+    }
+
+    async function renderGala() {
+      const state = await getState();
+      const gala = document.getElementById("galaContent");
+
+      if (!state) return;
+
+      if (state.status === "voting") {
+        const votes = await getVotes();
+        const voters = new Set(votes.map(v => v.voter_id));
+        const count = PARTICIPANTS.filter(p => voters.has(p.id)).length;
+
+        gala.innerHTML = `
+          <div class="gala-box">
+            <div class="position">Esperando votaciones</div>
+            <p class="points">${count} / ${PARTICIPANTS.length} votos recibidos</p>
+            <p class="small">El ranking aparecerá cuando el organizador inicie la revelación.</p>
+          </div>
+        `;
+        return;
+      }
+
+      const order = await getRevealOrder();
+      const revealed = order.slice(0, state.reveal_index + 1);
+      const current = order[state.reveal_index];
+
+      if (!current) {
+        gala.innerHTML = `
+          <div class="gala-box">
+            <div class="position">Aún no hay resultado para mostrar</div>
+          </div>
+        `;
+        return;
+      }
+
+      const position = PARTICIPANTS.length - state.reveal_index;
+      const isWinner = position === 1;
+
+      const revealedTable = revealed.map((p, index) => {
+        const pos = PARTICIPANTS.length - index;
+        return `
+          <tr>
+            <td>${pos}º</td>
+            <td>${p.name}</td>
+            <td>${p.total}</td>
+          </tr>
+        `;
+      }).join("");
+
+      gala.innerHTML = `
+        <div class="gala-box ${isWinner ? "winner" : ""}">
+          <div class="position">${isWinner ? "GANADOR/A" : position + "º puesto"}</div>
+          <div class="contestant-name">${current.name}</div>
+          <div class="points">${current.total} puntos</div>
+          ${isWinner ? `<p class="message success">¡Enhorabuena, ${current.name}!</p>` : ""}
+        </div>
+
+        <h3>Revelados</h3>
+        <table class="ranking-table">
+          <thead>
+            <tr>
+              <th>Puesto</th>
+              <th>Participante</th>
+              <th>Puntos</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${revealedTable}
+          </tbody>
+        </table>
+      `;
+    }
+
+    async function resetContest() {
+      if (!confirm("¿Seguro que quieres borrar todos los votos y reiniciar el concurso?")) return;
+
+      const { error: votesError } = await db
+        .from("votes")
+        .delete()
+        .neq("id", 0);
+
+      if (votesError) {
+        alert("Error borrando votos: " + votesError.message);
+        return;
+      }
+
+      const { error: stateError } = await db
+        .from("contest_state")
+        .update({
+          status: "voting",
+          reveal_index: -1,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", 1);
+
+      if (stateError) {
+        alert("Error reiniciando estado: " + stateError.message);
+        return;
+      }
+
+      await renderAdminPanel();
+      await renderGala();
+    }
+
+    function subscribeToChanges() {
+      db
+        .channel("contest-changes")
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "votes" },
+          async () => {
+            const visibleId = getVisibleScreen();
+
+            if (visibleId === "adminPanel") await renderAdminPanel();
+            if (visibleId === "gala") await renderGala();
+          }
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "contest_state" },
+          async () => {
+            const visibleId = getVisibleScreen();
+
+            if (visibleId === "adminPanel") await renderAdminPanel();
+            if (visibleId === "gala") await renderGala();
+          }
+        )
+        .subscribe();
+    }
+
+    function getVisibleScreen() {
+      const section = Array.from(document.querySelectorAll("main > section"))
+        .find(s => !s.classList.contains("hidden"));
+
+      return section ? section.id : null;
+    }
+
+    initApp();
+  </script>
+</body>
+</html>
