@@ -48,11 +48,6 @@
       line-height: 1.1;
     }
 
-    .subtitle {
-      margin-top: 8px;
-      color: var(--muted);
-    }
-
     .festival-header {
       padding: 34px 18px 14px;
       text-align: center;
@@ -171,13 +166,34 @@
       margin-top: 12px;
     }
 
-    .status-item {
+    .status-item,
+    .order-item {
       display: flex;
       justify-content: space-between;
       gap: 12px;
       background: rgba(255,255,255,0.06);
       padding: 12px;
       border-radius: 14px;
+      align-items: center;
+    }
+
+    .order-number {
+      width: 36px;
+      height: 36px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, var(--accent), #ff8a00);
+      color: #1a0b00;
+      font-weight: 1000;
+      flex: 0 0 auto;
+    }
+
+    .order-name {
+      flex: 1;
+      font-weight: 900;
+      font-size: 1.05rem;
     }
 
     .ok {
@@ -302,6 +318,12 @@
       margin-bottom: 18px;
     }
 
+    .gala-actions {
+      margin-top: 18px;
+      display: grid;
+      gap: 10px;
+    }
+
     @keyframes pop {
       0% {
         transform: scale(0.6);
@@ -331,9 +353,21 @@
       <h2>Menú</h2>
       <div class="menu">
         <button onclick="showScreen('voteLogin')">Votar</button>
+        <button onclick="showScreen('performanceOrder')" class="secondary">Orden de actuación</button>
         <button onclick="showScreen('adminLogin')" class="secondary">Panel organizador</button>
         <button onclick="showScreen('gala')" class="secondary">Gala</button>
       </div>
+    </section>
+
+    <section id="performanceOrder" class="card hidden">
+      <h2>Orden de actuación</h2>
+      <p class="small">Genera un orden aleatorio para escuchar las canciones. El orden se guarda online para que todos vean el mismo.</p>
+
+      <div id="performanceOrderContent"></div>
+
+      <button onclick="generatePerformanceOrder()">Generar orden aleatorio</button>
+      <button onclick="renderPerformanceOrder()" class="secondary">Actualizar</button>
+      <button onclick="showScreen('home')" class="secondary">Volver</button>
     </section>
 
     <section id="voteLogin" class="card hidden">
@@ -390,8 +424,12 @@
 
     <section id="gala" class="card hidden">
       <div id="galaContent"></div>
-      <button onclick="renderGala()" class="secondary">Actualizar</button>
-      <button onclick="showScreen('home')" class="secondary">Volver</button>
+
+      <div class="gala-actions">
+        <button id="galaNextBtn" onclick="nextReveal()">Revelar siguiente</button>
+        <button onclick="renderGala()" class="secondary">Actualizar</button>
+        <button onclick="showScreen('home')" class="secondary">Volver</button>
+      </div>
     </section>
   </main>
 
@@ -468,6 +506,7 @@
       if (id === "voteLogin") renderParticipantSelect();
       if (id === "adminPanel") renderAdminPanel();
       if (id === "gala") renderGala();
+      if (id === "performanceOrder") renderPerformanceOrder();
     }
 
     function renderParticipantSelect() {
@@ -481,6 +520,72 @@
 
       document.getElementById("participantPin").value = "";
       document.getElementById("loginMsg").innerHTML = "";
+    }
+
+    async function renderPerformanceOrder() {
+      const state = await getState();
+      const box = document.getElementById("performanceOrderContent");
+
+      if (!state || !box) return;
+
+      const order = Array.isArray(state.performance_order) ? state.performance_order : [];
+
+      if (!order.length) {
+        box.innerHTML = `
+          <div class="message">
+            Aún no se ha generado ningún orden de actuación.
+          </div>
+        `;
+        return;
+      }
+
+      const byId = Object.fromEntries(PARTICIPANTS.map(p => [p.id, p]));
+
+      box.innerHTML = `
+        <div class="status-list">
+          ${order.map((id, index) => {
+            const participant = byId[id];
+            return `
+              <div class="order-item">
+                <span class="order-number">${index + 1}</span>
+                <span class="order-name">${participant ? participant.name : id}</span>
+              </div>
+            `;
+          }).join("")}
+        </div>
+      `;
+    }
+
+    function shuffleArray(array) {
+      const copy = [...array];
+
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+
+      return copy;
+    }
+
+    async function generatePerformanceOrder() {
+      if (!confirm("¿Generar un nuevo orden aleatorio de actuación?")) return;
+
+      const order = shuffleArray(PARTICIPANTS.map(p => p.id));
+
+      const { error } = await db
+        .from("contest_state")
+        .update({
+          performance_order: order,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", 1);
+
+      if (error) {
+        alert("Error generando orden: " + error.message);
+        return;
+      }
+
+      await renderPerformanceOrder();
     }
 
     async function loginParticipant() {
@@ -825,6 +930,11 @@
       }
 
       await renderAdminPanel();
+
+      const visibleId = getVisibleScreen();
+      if (visibleId === "gala") {
+        await renderGala();
+      }
     }
 
     async function restartReveal() {
@@ -856,14 +966,24 @@
 
       await renderAdminPanel();
 
+      const visibleId = getVisibleScreen();
+      if (visibleId === "gala") {
+        await renderGala();
+      }
+
       alert("Revelación reiniciada desde el 8º puesto. Mira la pantalla de Gala.");
     }
 
     async function renderGala() {
       const state = await getState();
       const gala = document.getElementById("galaContent");
+      const galaNextBtn = document.getElementById("galaNextBtn");
 
       if (!state) return;
+
+      if (galaNextBtn) {
+        galaNextBtn.disabled = state.status === "voting" || state.status === "finished";
+      }
 
       if (countdownTimer) {
         clearInterval(countdownTimer);
@@ -1122,6 +1242,7 @@
 
             if (visibleId === "adminPanel") await renderAdminPanel();
             if (visibleId === "gala") await renderGala();
+            if (visibleId === "performanceOrder") await renderPerformanceOrder();
           }
         )
         .subscribe();
