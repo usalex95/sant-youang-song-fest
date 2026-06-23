@@ -413,6 +413,16 @@
 
       <div id="adminStatus"></div>
 
+      <div class="admin-control-box">
+        <div class="admin-control-title">Borrar voto de participante</div>
+        <div class="small">Úsalo si alguien se ha equivocado. Solo borra los votos enviados por esa persona.</div>
+
+        <label for="deleteVoteSelect">Participante</label>
+        <select id="deleteVoteSelect"></select>
+
+        <button onclick="deleteSelectedParticipantVotes()" class="danger">Borrar voto seleccionado</button>
+      </div>
+
       <div class="menu">
         <button id="startRevealBtn" onclick="startReveal()">Preparar ranking</button>
         <button id="restartRevealBtn" onclick="restartReveal()" class="secondary">Reiniciar preparación del ranking</button>
@@ -571,6 +581,18 @@
 
       document.getElementById("participantPin").value = "";
       document.getElementById("loginMsg").innerHTML = "";
+    }
+
+    function renderDeleteVoteSelect(votersSet) {
+      const select = document.getElementById("deleteVoteSelect");
+
+      if (!select) return;
+
+      select.innerHTML = PARTICIPANTS.map(p => `
+        <option value="${p.id}" ${!votersSet.has(p.id) ? "disabled" : ""}>
+          ${p.name}${votersSet.has(p.id) ? "" : " - sin voto"}
+        </option>
+      `).join("");
     }
 
     async function renderPerformanceOrder() {
@@ -883,6 +905,8 @@
       const voters = new Set(votes.map(v => v.voter_id));
       const count = PARTICIPANTS.filter(p => voters.has(p.id)).length;
 
+      renderDeleteVoteSelect(voters);
+
       let controlText = "Esperando votos.";
       let controlDetail = "Cuando voten los 8, podrás preparar el ranking. El ranking no se muestra en este panel.";
 
@@ -932,6 +956,67 @@
 
       document.getElementById("startRevealBtn").disabled = count !== PARTICIPANTS.length || state.status !== "voting";
       document.getElementById("restartRevealBtn").disabled = count !== PARTICIPANTS.length || state.status === "voting";
+    }
+
+    async function deleteSelectedParticipantVotes() {
+      const select = document.getElementById("deleteVoteSelect");
+
+      if (!select || !select.value) {
+        alert("Selecciona un participante.");
+        return;
+      }
+
+      const participant = PARTICIPANTS.find(p => p.id === select.value);
+
+      if (!participant) {
+        alert("Participante no encontrado.");
+        return;
+      }
+
+      const votes = await getVotes();
+      const hasVotes = votes.some(v => v.voter_id === participant.id);
+
+      if (!hasVotes) {
+        alert(`${participant.name} no tiene voto registrado.`);
+        return;
+      }
+
+      if (!confirm(`¿Seguro que quieres borrar el voto de ${participant.name}?`)) return;
+
+      const { error: deleteError } = await db
+        .from("votes")
+        .delete()
+        .eq("voter_id", participant.id);
+
+      if (deleteError) {
+        alert("Error borrando votos: " + deleteError.message);
+        return;
+      }
+
+      const { error: stateError } = await db
+        .from("contest_state")
+        .update({
+          status: "voting",
+          reveal_index: -1,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", 1);
+
+      if (stateError) {
+        alert("Voto borrado, pero hubo un error actualizando el estado: " + stateError.message);
+        return;
+      }
+
+      lastShownRevealKey = null;
+      lastConfettiWinnerKey = null;
+
+      await renderAdminPanel();
+
+      if (galaUnlocked && getVisibleScreen() === "gala") {
+        await renderGala();
+      }
+
+      alert(`Voto de ${participant.name} borrado. Ahora puede volver a votar.`);
     }
 
     async function calculateRanking() {
