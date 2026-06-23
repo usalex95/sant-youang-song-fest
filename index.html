@@ -414,9 +414,8 @@
       <div id="adminStatus"></div>
 
       <div class="menu">
-        <button id="startRevealBtn" onclick="startReveal()">Iniciar revelación</button>
-        <button id="nextRevealBtn" onclick="nextReveal()" class="secondary">Revelar siguiente paso</button>
-        <button id="restartRevealBtn" onclick="restartReveal()" class="secondary">Reiniciar revelación desde el 8º</button>
+        <button id="startRevealBtn" onclick="startReveal()">Preparar ranking</button>
+        <button id="restartRevealBtn" onclick="restartReveal()" class="secondary">Reiniciar preparación del ranking</button>
         <button onclick="resetContest()" class="danger">Reiniciar concurso</button>
         <button onclick="showScreen('home')" class="secondary">Volver</button>
       </div>
@@ -439,6 +438,7 @@
       <div id="galaContent"></div>
 
       <div class="gala-actions">
+        <button id="galaStartRankingBtn" onclick="beginRanking()">Empezar ranking</button>
         <button id="galaNextBtn" onclick="nextReveal()">Revelar siguiente</button>
         <button onclick="renderGala()" class="secondary">Actualizar</button>
         <button onclick="lockGalaAndGoHome()" class="secondary">Cerrar Gala</button>
@@ -519,6 +519,7 @@
 
       if (id === "voteLogin") renderParticipantSelect();
       if (id === "adminPanel") renderAdminPanel();
+
       if (id === "gala") {
         if (!galaUnlocked) {
           showScreen("galaLogin");
@@ -526,6 +527,7 @@
         }
         renderGala();
       }
+
       if (id === "galaLogin") resetGalaLogin();
       if (id === "performanceOrder") renderPerformanceOrder();
     }
@@ -817,22 +819,27 @@
       const count = PARTICIPANTS.filter(p => voters.has(p.id)).length;
 
       let controlText = "Esperando votos.";
-      let controlDetail = "Cuando voten los 8, podrás iniciar la revelación. El ranking no se muestra en este panel.";
+      let controlDetail = "Cuando voten los 8, podrás preparar el ranking. El ranking no se muestra en este panel.";
+
+      if (state.status === "ready") {
+        controlText = "Ranking preparado.";
+        controlDetail = "Abre la pantalla de Gala y pulsa “Empezar ranking” para revelar el 8º puesto.";
+      }
 
       if (state.status === "revealing") {
         const position = PARTICIPANTS.length - state.reveal_index;
-        controlText = "Gala en marcha.";
+        controlText = "Ranking en marcha.";
 
         if (position === 3) {
-          controlDetail = "Siguiente acción: revelar directamente el ganador/a. El 2º puesto aparecerá en el ranking final.";
+          controlDetail = "Siguiente acción en Gala: revelar directamente el ganador/a. El 2º puesto aparecerá en el ranking final.";
         } else {
-          controlDetail = `Siguiente acción: revelar siguiente paso. Actualmente la gala está en el ${position}º puesto.`;
+          controlDetail = `Siguiente acción en Gala: revelar siguiente paso. Actualmente la gala está en el ${position}º puesto.`;
         }
       }
 
       if (state.status === "finished") {
         controlText = "Gala finalizada.";
-        controlDetail = "El ganador ya se ha revelado y la pantalla de Gala muestra el ranking final. Puedes reiniciar solo la revelación sin borrar votos.";
+        controlDetail = "El ganador ya se ha revelado y la pantalla de Gala muestra el ranking final. Puedes reiniciar solo la preparación sin borrar votos.";
       }
 
       const statusList = PARTICIPANTS.map(p => `
@@ -859,7 +866,6 @@
       `;
 
       document.getElementById("startRevealBtn").disabled = count !== PARTICIPANTS.length || state.status !== "voting";
-      document.getElementById("nextRevealBtn").disabled = state.status === "voting" || state.status === "finished";
       document.getElementById("restartRevealBtn").disabled = count !== PARTICIPANTS.length || state.status === "voting";
     }
 
@@ -923,6 +929,38 @@
       const { error } = await db
         .from("contest_state")
         .update({
+          status: "ready",
+          reveal_index: -1,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", 1);
+
+      if (error) {
+        alert("Error preparando ranking: " + error.message);
+        return;
+      }
+
+      await renderAdminPanel();
+
+      alert("Ranking preparado. Abre la pantalla de Gala y pulsa “Empezar ranking”.");
+    }
+
+    async function beginRanking() {
+      const state = await getState();
+
+      if (!state) return;
+
+      if (state.status !== "ready") {
+        alert("El ranking no está preparado o ya ha empezado.");
+        return;
+      }
+
+      lastShownRevealKey = null;
+      lastConfettiWinnerKey = null;
+
+      const { error } = await db
+        .from("contest_state")
+        .update({
           status: "revealing",
           reveal_index: 0,
           updated_at: new Date().toISOString()
@@ -930,20 +968,18 @@
         .eq("id", 1);
 
       if (error) {
-        alert("Error iniciando revelación: " + error.message);
+        alert("Error empezando ranking: " + error.message);
         return;
       }
 
-      await renderAdminPanel();
-
-      alert("Revelación iniciada. Abre la pantalla de Gala con el PIN organizador.");
+      await renderGala();
     }
 
     async function nextReveal() {
       const state = await getState();
       const order = await getRevealOrder();
 
-      if (state.status === "voting") return;
+      if (state.status !== "revealing") return;
 
       let newStatus = state.status;
       let newIndex = state.reveal_index;
@@ -979,12 +1015,10 @@
         return;
       }
 
-      await renderAdminPanel();
-
       const visibleId = getVisibleScreen();
-      if (visibleId === "gala") {
-        await renderGala();
-      }
+
+      if (visibleId === "adminPanel") await renderAdminPanel();
+      if (visibleId === "gala") await renderGala();
     }
 
     async function restartReveal() {
@@ -995,7 +1029,7 @@
         return;
       }
 
-      if (!confirm("¿Quieres reiniciar la revelación desde el 8º puesto sin borrar los votos?")) return;
+      if (!confirm("¿Quieres volver a preparar el ranking desde el inicio sin borrar los votos?")) return;
 
       lastShownRevealKey = null;
       lastConfettiWinnerKey = null;
@@ -1003,25 +1037,23 @@
       const { error } = await db
         .from("contest_state")
         .update({
-          status: "revealing",
-          reveal_index: 0,
+          status: "ready",
+          reveal_index: -1,
           updated_at: new Date().toISOString()
         })
         .eq("id", 1);
 
       if (error) {
-        alert("Error reiniciando la revelación: " + error.message);
+        alert("Error reiniciando la preparación: " + error.message);
         return;
       }
 
-      await renderAdminPanel();
-
       const visibleId = getVisibleScreen();
-      if (visibleId === "gala") {
-        await renderGala();
-      }
 
-      alert("Revelación reiniciada desde el 8º puesto. Abre la pantalla de Gala con el PIN organizador.");
+      if (visibleId === "adminPanel") await renderAdminPanel();
+      if (visibleId === "gala") await renderGala();
+
+      alert("Ranking preparado de nuevo. Pulsa “Empezar ranking” en la pantalla de Gala.");
     }
 
     async function renderGala() {
@@ -1032,12 +1064,17 @@
 
       const state = await getState();
       const gala = document.getElementById("galaContent");
-      const galaNextBtn = document.getElementById("galaNextBtn");
+      const startBtn = document.getElementById("galaStartRankingBtn");
+      const nextBtn = document.getElementById("galaNextBtn");
 
       if (!state) return;
 
-      if (galaNextBtn) {
-        galaNextBtn.disabled = state.status === "voting" || state.status === "finished";
+      if (startBtn) {
+        startBtn.disabled = state.status !== "ready";
+      }
+
+      if (nextBtn) {
+        nextBtn.disabled = state.status !== "revealing";
       }
 
       if (countdownTimer) {
@@ -1054,7 +1091,18 @@
           <div class="gala-box">
             <div class="position">Esperando votaciones</div>
             <p class="points">${count} / ${PARTICIPANTS.length} votos recibidos</p>
-            <p class="small">El ranking aparecerá cuando el organizador inicie la revelación.</p>
+            <p class="small">El ranking aparecerá cuando el organizador prepare la revelación.</p>
+          </div>
+        `;
+        return;
+      }
+
+      if (state.status === "ready") {
+        gala.innerHTML = `
+          <div class="gala-box">
+            <div class="position">Ranking preparado</div>
+            <p class="points">Todo listo</p>
+            <p class="small">Pulsa “Empezar ranking” para revelar el 8º puesto.</p>
           </div>
         `;
         return;
@@ -1272,11 +1320,10 @@
         return;
       }
 
-      await renderAdminPanel();
+      const visibleId = getVisibleScreen();
 
-      if (galaUnlocked) {
-        await renderGala();
-      }
+      if (visibleId === "adminPanel") await renderAdminPanel();
+      if (visibleId === "gala") await renderGala();
     }
 
     function subscribeToChanges() {
