@@ -361,11 +361,12 @@
 
     <section id="performanceOrder" class="card hidden">
       <h2>Orden de actuación</h2>
-      <p class="small">Todos pueden ver el orden. Solo el organizador puede generar uno nuevo.</p>
+      <p class="small">Todos pueden ver el orden. Solo el organizador puede generar o limpiar el orden.</p>
 
       <div id="performanceOrderContent"></div>
 
       <button onclick="generatePerformanceOrder()">Generar orden aleatorio</button>
+      <button onclick="clearPerformanceOrder()" class="danger">Limpiar orden de actuación</button>
       <button onclick="showScreen('home')" class="secondary">Volver</button>
     </section>
 
@@ -439,7 +440,6 @@
       <div class="gala-actions">
         <button id="galaStartRankingBtn" onclick="beginRanking()">Empezar ranking</button>
         <button id="galaNextBtn" onclick="nextReveal()">Revelar siguiente</button>
-        <button onclick="renderGala()" class="secondary">Actualizar</button>
         <button onclick="lockGalaAndGoHome()" class="secondary">Cerrar Gala</button>
       </div>
     </section>
@@ -618,19 +618,38 @@
       return copy;
     }
 
+    async function requireOrganizerPin(message = "Introduce el PIN organizador:") {
+      const state = await getState();
+
+      if (!state) return false;
+
+      const pin = prompt(message);
+
+      if (pin === null) return false;
+
+      if (pin.trim() !== state.organizer_pin) {
+        alert("PIN organizador incorrecto.");
+        return false;
+      }
+
+      return true;
+    }
+
     async function generatePerformanceOrder() {
       const state = await getState();
 
       if (!state) return;
 
-      const pin = prompt("Introduce el PIN organizador para generar un nuevo orden:");
+      const currentOrder = Array.isArray(state.performance_order) ? state.performance_order : [];
 
-      if (pin === null) return;
-
-      if (pin.trim() !== state.organizer_pin) {
-        alert("PIN organizador incorrecto.");
+      if (currentOrder.length) {
+        alert("Ya existe un orden de actuación. Para generar uno nuevo, primero limpia el orden actual.");
         return;
       }
+
+      const ok = await requireOrganizerPin("Introduce el PIN organizador para generar el orden:");
+
+      if (!ok) return;
 
       if (!confirm("¿Generar un nuevo orden aleatorio de actuación?")) return;
 
@@ -646,6 +665,40 @@
 
       if (error) {
         alert("Error generando orden: " + error.message);
+        return;
+      }
+
+      await renderPerformanceOrder();
+    }
+
+    async function clearPerformanceOrder() {
+      const state = await getState();
+
+      if (!state) return;
+
+      const currentOrder = Array.isArray(state.performance_order) ? state.performance_order : [];
+
+      if (!currentOrder.length) {
+        alert("No hay ningún orden de actuación para limpiar.");
+        return;
+      }
+
+      const ok = await requireOrganizerPin("Introduce el PIN organizador para limpiar el orden:");
+
+      if (!ok) return;
+
+      if (!confirm("¿Seguro que quieres limpiar el orden de actuación actual?")) return;
+
+      const { error } = await db
+        .from("contest_state")
+        .update({
+          performance_order: [],
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", 1);
+
+      if (error) {
+        alert("Error limpiando orden: " + error.message);
         return;
       }
 
