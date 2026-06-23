@@ -361,12 +361,11 @@
 
     <section id="performanceOrder" class="card hidden">
       <h2>Orden de actuación</h2>
-      <p class="small">Genera un orden aleatorio para escuchar las canciones. El orden se guarda online para que todos vean el mismo.</p>
+      <p class="small">Todos pueden ver el orden. Solo el organizador puede generar uno nuevo.</p>
 
       <div id="performanceOrderContent"></div>
 
       <button onclick="generatePerformanceOrder()">Generar orden aleatorio</button>
-      <button onclick="renderPerformanceOrder()" class="secondary">Actualizar</button>
       <button onclick="showScreen('home')" class="secondary">Volver</button>
     </section>
 
@@ -620,6 +619,19 @@
     }
 
     async function generatePerformanceOrder() {
+      const state = await getState();
+
+      if (!state) return;
+
+      const pin = prompt("Introduce el PIN organizador para generar un nuevo orden:");
+
+      if (pin === null) return;
+
+      if (pin.trim() !== state.organizer_pin) {
+        alert("PIN organizador incorrecto.");
+        return;
+      }
+
       if (!confirm("¿Generar un nuevo orden aleatorio de actuación?")) return;
 
       const order = shuffleArray(PARTICIPANTS.map(p => p.id));
