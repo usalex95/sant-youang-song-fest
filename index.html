@@ -355,7 +355,7 @@
         <button onclick="showScreen('voteLogin')">Votar</button>
         <button onclick="showScreen('performanceOrder')" class="secondary">Orden de actuación</button>
         <button onclick="showScreen('adminLogin')" class="secondary">Panel organizador</button>
-        <button onclick="showScreen('gala')" class="secondary">Gala</button>
+        <button onclick="showScreen('galaLogin')" class="secondary">Gala</button>
       </div>
     </section>
 
@@ -422,13 +422,26 @@
       </div>
     </section>
 
+    <section id="galaLogin" class="card hidden">
+      <h2>Acceso Gala</h2>
+      <p class="small">Introduce el PIN organizador para abrir la pantalla de Gala.</p>
+
+      <label for="galaPin">PIN organizador</label>
+      <input id="galaPin" type="password" inputmode="numeric" placeholder="PIN organizador" />
+
+      <div id="galaLoginMsg"></div>
+
+      <button onclick="loginGala()">Entrar a Gala</button>
+      <button onclick="showScreen('home')" class="secondary">Volver</button>
+    </section>
+
     <section id="gala" class="card hidden">
       <div id="galaContent"></div>
 
       <div class="gala-actions">
         <button id="galaNextBtn" onclick="nextReveal()">Revelar siguiente</button>
         <button onclick="renderGala()" class="secondary">Actualizar</button>
-        <button onclick="showScreen('home')" class="secondary">Volver</button>
+        <button onclick="lockGalaAndGoHome()" class="secondary">Cerrar Gala</button>
       </div>
     </section>
   </main>
@@ -444,6 +457,7 @@
     let PARTICIPANTS = [];
     let currentParticipant = null;
     let adminUnlocked = false;
+    let galaUnlocked = false;
     let countdownTimer = null;
     let lastShownRevealKey = null;
     let lastConfettiWinnerKey = null;
@@ -505,8 +519,44 @@
 
       if (id === "voteLogin") renderParticipantSelect();
       if (id === "adminPanel") renderAdminPanel();
-      if (id === "gala") renderGala();
+      if (id === "gala") {
+        if (!galaUnlocked) {
+          showScreen("galaLogin");
+          return;
+        }
+        renderGala();
+      }
+      if (id === "galaLogin") resetGalaLogin();
       if (id === "performanceOrder") renderPerformanceOrder();
+    }
+
+    function resetGalaLogin() {
+      const input = document.getElementById("galaPin");
+      const msg = document.getElementById("galaLoginMsg");
+
+      if (input) input.value = "";
+      if (msg) msg.innerHTML = "";
+    }
+
+    async function loginGala() {
+      const pin = document.getElementById("galaPin").value.trim();
+      const state = await getState();
+
+      if (!state) return;
+
+      if (pin !== state.organizer_pin) {
+        document.getElementById("galaLoginMsg").innerHTML =
+          `<div class="message error">PIN organizador incorrecto.</div>`;
+        return;
+      }
+
+      galaUnlocked = true;
+      showScreen("gala");
+    }
+
+    function lockGalaAndGoHome() {
+      galaUnlocked = false;
+      showScreen("home");
     }
 
     function renderParticipantSelect() {
@@ -886,7 +936,7 @@
 
       await renderAdminPanel();
 
-      alert("Revelación iniciada. Mira la pantalla de Gala.");
+      alert("Revelación iniciada. Abre la pantalla de Gala con el PIN organizador.");
     }
 
     async function nextReveal() {
@@ -971,10 +1021,15 @@
         await renderGala();
       }
 
-      alert("Revelación reiniciada desde el 8º puesto. Mira la pantalla de Gala.");
+      alert("Revelación reiniciada desde el 8º puesto. Abre la pantalla de Gala con el PIN organizador.");
     }
 
     async function renderGala() {
+      if (!galaUnlocked) {
+        showScreen("galaLogin");
+        return;
+      }
+
       const state = await getState();
       const gala = document.getElementById("galaContent");
       const galaNextBtn = document.getElementById("galaNextBtn");
@@ -1218,7 +1273,10 @@
       }
 
       await renderAdminPanel();
-      await renderGala();
+
+      if (galaUnlocked) {
+        await renderGala();
+      }
     }
 
     function subscribeToChanges() {
@@ -1231,7 +1289,7 @@
             const visibleId = getVisibleScreen();
 
             if (visibleId === "adminPanel") await renderAdminPanel();
-            if (visibleId === "gala") await renderGala();
+            if (visibleId === "gala" && galaUnlocked) await renderGala();
           }
         )
         .on(
@@ -1241,7 +1299,7 @@
             const visibleId = getVisibleScreen();
 
             if (visibleId === "adminPanel") await renderAdminPanel();
-            if (visibleId === "gala") await renderGala();
+            if (visibleId === "gala" && galaUnlocked) await renderGala();
             if (visibleId === "performanceOrder") await renderPerformanceOrder();
           }
         )
